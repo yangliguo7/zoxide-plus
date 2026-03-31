@@ -1,0 +1,100 @@
+#!/usr/bin/env zsh
+# zoxide-plus installer
+# Intended to be executed via: curl -fsSL <URL> | zsh
+
+set -euo pipefail
+
+ZSHRC="$HOME/.zshrc"
+TARGET_DIR="$HOME/.zoxide-plus"
+TARGET_SCRIPT="$TARGET_DIR/zoxide-plus"
+TARGET_SOURCE="source $TARGET_SCRIPT"
+BREW_BIN="$(command -v brew || true)"
+
+if [[ -z "$BREW_BIN" && -x "/opt/homebrew/bin/brew" ]]; then
+  BREW_BIN="/opt/homebrew/bin/brew"
+elif [[ -z "$BREW_BIN" && -x "/usr/local/bin/brew" ]]; then
+  BREW_BIN="/usr/local/bin/brew"
+fi
+
+if ! command -v zoxide >/dev/null 2>&1; then
+  if [[ -n "$BREW_BIN" ]]; then
+    echo 'Installing zoxide with Homebrew...'
+    "$BREW_BIN" install zoxide
+  else
+    echo 'Homebrew was not found. Please install zoxide manually, then run this installer again.' >&2
+    exit 1
+  fi
+fi
+
+mkdir -p "$TARGET_DIR"
+cat > "$TARGET_SCRIPT" <<'EOF'
+#!/usr/bin/env zsh
+
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
+j() {
+  local dest choice
+  local has_zoxide=0
+  local -a matches
+
+  if command -v zoxide >/dev/null 2>&1; then
+    has_zoxide=1
+
+    if [[ $# -gt 0 ]]; then
+      matches=("${(@f)$(zoxide query -l -- "$@" 2>/dev/null)}")
+
+      if (( ${#matches[@]} == 1 )); then
+        dest="$matches[1]"
+      elif (( ${#matches[@]} > 1 )); then
+        printf 'Multiple directories found. Enter a number to choose:\n'
+        local i=1
+        for dest in "${matches[@]}"; do
+          printf '  %d) %s\n' "$i" "$dest"
+          ((i++))
+        done
+        printf 'Selection: '
+        read choice
+        [[ "$choice" =~ '^[0-9]+$' ]] || return
+        (( choice >= 1 && choice <= ${#matches[@]} )) || return
+        dest="$matches[$choice]"
+      else
+        dest="$(zoxide query "$@" 2>/dev/null)"
+      fi
+    fi
+  else
+    printf 'zoxide is not installed. Please install it first and try again.\n'
+  fi
+
+  if [[ -z "$dest" ]]; then
+    dest="$(osascript -e 'POSIX path of (choose folder with prompt "Choose a directory")' 2>/dev/null)" || return
+    [[ -n "$dest" ]] || return
+
+    if [[ "$has_zoxide" -eq 1 ]]; then
+      zoxide add "$dest"
+    else
+      printf 'Jumped to the selected directory only. Install zoxide to enable history and keyword matching.\n'
+    fi
+  fi
+
+  cd "$dest" || return
+}
+EOF
+chmod +x "$TARGET_SCRIPT"
+
+if [[ -f "$ZSHRC" ]]; then
+  if ! grep -Fqx "$TARGET_SOURCE" "$ZSHRC"; then
+    printf '\n%s\n' "$TARGET_SOURCE" >> "$ZSHRC"
+    echo 'Added zoxide-plus to ~/.zshrc'
+  else
+    echo 'zoxide-plus is already configured in ~/.zshrc'
+  fi
+else
+  printf '%s\n' "$TARGET_SOURCE" > "$ZSHRC"
+  echo 'Created ~/.zshrc and added zoxide-plus'
+fi
+
+echo 'Done.'
+echo 'Run: source ~/.zshrc'
+echo 'Then try: j vb'
