@@ -7,7 +7,7 @@ Single-file installer for the `j` directory-jump command.
 ## Install
 
 ```bash
-curl -fsSL <YOUR_INSTALL_URL> | zsh
+curl -fsSL https://raw.githubusercontent.com/yangliguo7/zoxide-plus/main/install-zoxide-plus | zsh
 ```
 
 The installer will automatically:

@@ -7,7 +7,7 @@
 ## 一键安装
 
 ```bash
-curl -fsSL <YOUR_INSTALL_URL> | zsh
+curl -fsSL https://raw.githubusercontent.com/yangliguo7/zoxide-plus/main/install-zoxide-plus | zsh
 ```
 
 安装脚本会自动完成：
